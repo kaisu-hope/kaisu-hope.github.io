@@ -1,5 +1,146 @@
 # 面经
 
+## Java基础
+
+### Spring为什么被设计为不可变的
+
+1.字符串常量池
+
+2.hashcode不可变
+
+3.线程安全
+
+### 为什么不推荐使用Executors来创建线程池
+
+因为Executors的内置线程池存在使用无界队列和无线程数量上限的问题
+
+### 如何手动创建一个线程池
+
+通过ThreadPoolExecutor来创建
+
+核心创建参数：
+
+corePoolSize 		   核心线程大小
+
+maxinumPoolSize   线程池最大容量大小
+
+keepAliveTime 		线程空闲存活时间
+
+unit 						   时间单位
+
+workQueue 			 任务队列
+
+threadFactory 		 线程工厂
+
+handler 					拒绝策略
+
+### CAS
+
+CAS 比较并交换（自旋锁）
+
+存在的问题及解决方案
+
+ABA问题：通过添加版本号解决 AtomicStampedReference
+
+无法针对某个方法，只能保证单个变量的原子操作
+
+多线程情况消耗资源
+
+### 线程池线程复用原理
+
+ThreadPoolExecutor中的复用主要通过runWork来实现
+
+在runWrok中存在一个检查任务队列是否非空的循环
+
+在循环中会手动调用任务的run方法并非重新创建线程调用start方法
+
+### 阻塞队列和非阻塞队列的实现区别
+
+ArrayBlockingQueue(阻塞队列)
+
+使用ReentrantLock.lockInterruptibly();实现（可冲断锁）
+
+ConcurrentLinkedQueue（非阻塞队列）
+
+使用CAS实现基于VarHandle的native方法，调用CPU的CAS指令（不可中断）
+
+### 公平锁和非公平锁
+
+公平锁
+
+new ReentrantLock(true);
+
+非公平锁
+
+存在线程饥饿问题
+
+new ReentrantLock(false);
+
+synchronized
+
+区别：
+
+公平锁会进入等待队列进行排队，判断为队列第一个的线程才能获得锁
+
+非公平锁不会直接进入等待队列，会尝试能否直接获取到锁，获取不到才进入等待队列
+
+### Synchronized和Lock的区别
+
+类别 | Synchronized | Lock
+:------: | :---:|:----:
+存在层次 | Java的关键字 |接口
+锁的释放 | 以获取锁的线程执行完同步代码，释放锁\|线程发生异常JVM让线程释放 |在finally中手动释放，否则容易导致死锁
+锁的获取 | 假设A线程获得锁，B线程等待。如果A线程阻塞，B线程会一直等待 |分情况而定，Lock有多个锁获取的方式，可以尝试获得锁，线程无需一直等待（可以通过tryLock判断是否有锁）
+锁状态 | 无法判断 |可以判断
+锁类型 | 可重入、不可中断、非公平 |可重入、可判断、可公平、可非公平
+性能 | 少量同步 |大量同步
+
+Synchronized编码更简单，锁机制由JVM维护，在竞争不激烈的情况下性能更好。Lock功能更灵活更强大，竞争激烈时性能较好
+
+性能不一样：资源竞争激烈的情况下，Lock性能优于Synchronized，竞争不激烈的情况下，Synchronized比Lock好，Synchronized会根据锁的竞争情况，从偏向锁——》轻量级锁——》重量级锁，而且编程更加简单
+
+锁机制不一样：Synchronized是在JVM层面实现的，系统会监控锁的释放与否，Lock是JDK层面实现的，需要手动释放，在finally块中释放。可以采用非阻塞的方式获取锁。
+
+用法不一样：Synchronized可以用在方法，代码块上，Lock只能硬编码不能直接修改方法的原子属性
+
+公平锁：Synchronized是非公平锁，Lock支持公平锁和非公平锁，默认为非公平
+
+可中断锁：ReentrantLock提供了lockinterruptibly方法，可以中断争抢锁的操作，抢锁的时候会检查是否被中断，中断直接抛出异常，推出抢锁。而Synchronized只有抢锁的过程，不可进行干预，直到抢到锁之后，才可以通过编码进行锁的释放等操作
+
+快速反馈锁：ReentrantLock提供了trylcok()和trylock(tryTimes)的功能，不能带或者限定时间等待获取锁，更灵活。可以避免死锁的产生
+
+读写锁：ReentrantReadWriteLock实现了读写锁，类似与Mysql，锁自身维护一个计数器，读锁可以并发的获取，写锁只能独占，而Synchronized是独占锁，无法修改
+
+Condition：ReentrantLock提供了比Sync更精准的线程调度工具，Condition，一个lcok可以有多个Condition，比如在生产消费的业务下，一个锁通过控制生产Condition和消费Condition精准控制
+
+### 如何创建一个不可变的类
+
+使用record来创建的类就是不可变的
+
+或者使用final修饰类，并且所有类成员变量使用final修饰，并在构造方法中进行初始化，不能提供set方法，修改对象时需创建一个新对象
+
+### 静态代理和动态代理的区别
+
+静态代理：
+
+静态代理采用硬编码形式，局限性较大，较难重用
+
+动态代理：
+
+主流动态代理有两种，分别为Java自带的动态代理以及CGLib库提供的动态代理
+
+JDK动态代理是利用拦截器（被代理类必须实现InvocationHandler）加上反射机制生成的一个代理接口的匿名类，在调用具体方法通过invokeHandler来进行处理
+
+CGLib动态代理利用ASM框架，对代理对象类生成的class文件进行加载，通过修改器字节码生成子类来进行处理
+
+JDK动态代理和CGlib动态代理都在运行期生成字节码，JDK动态代理直接写Class字节码，CGLib动态代理使用ASM框架写Class字节码，生成代理类JDK动态代理比CGlib动态代理效率更高
+
+JDK动态代理调用代理方法通过反射机制进行调用，CGLib动态代理通过FastClass机制进行调用，调用效率CGlib比JDK动态代理效率更高
+
+如果要被代理的对象是个实现类，那么Spring会使用JDK动态代理来完成操作（Spirng默认采用JDK动态代理实现机制）；
+
+如果要被代理的对象不是个实现类那么，Spring会强制使用CGLib来实现动态代理。
+
 ## Spring全家桶
 
 ### SpringMVC
